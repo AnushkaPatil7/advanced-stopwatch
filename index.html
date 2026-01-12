@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Advanced Circular Stopwatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+* {margin:0; padding:0; box-sizing:border-box;}
+body {
+    font-family:Segoe UI, sans-serif;
+    background:#050505;
+    color:#fff;
+    overflow-y:auto;
+    overflow-x:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+}
+
+/* ===== BACKGROUND ===== */
+.animated-bg{
+    position:fixed; inset:0;
+    background:
+        radial-gradient(circle at 20% 20%, #ff8c0022, transparent 45%),
+        radial-gradient(circle at 80% 80%, #ff450022, transparent 45%);
+    z-index:0;
+}
+
+.grid-background{
+    position:fixed; inset:0;
+    background-image:
+        linear-gradient(rgba(255,140,0,.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,140,0,.15) 1px, transparent 1px);
+    background-size:60px 60px;
+    animation:gridMove 40s linear infinite;
+    z-index:1;
+}
+@keyframes gridMove{
+    from{transform:translate(0,0)}
+    to{transform:translate(60px,60px)}
+}
+
+/* ===== GIFS ===== */
+.gif-container{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:2;
+}
+.gif-bg{
+    position:absolute;
+    width:28vw;
+    opacity:.28;
+    animation:floatGif 50s linear infinite alternate;
+}
+.gif-bg img{width:100%}
+@keyframes floatGif{
+    from{transform:translateY(0)}
+    to{transform:translateY(-120px)}
+}
+
+/* ===== STOPWATCH WRAPPER ===== */
+.stopwatch-wrapper{
+    position:relative;
+    z-index:5;
+    padding:40px;
+}
+
+/* ===== CIRCULAR CONTAINER ===== */
+.circular-container{
+    position: relative;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: rgba(10,10,10,0.8);
+    box-shadow: 
+        0 0 60px rgba(255,140,0,0.6),
+        inset 0 0 80px rgba(255,140,0,0.1);
+    border: 3px solid rgba(255,140,0,0.3);
+}
+
+/* Clock markers */
+.clock-markers{
+    position:absolute;
+    inset:0;
+}
+.marker{
+    position:absolute;
+    width:2px;
+    height:15px;
+    background:rgba(255,140,0,0.5);
+    left:50%;
+    top:20px;
+    transform-origin:1px 230px;
+}
+
+/* Seconds hand - centered in circle */
+.seconds-hand{
+    position:absolute;
+    width:4px;
+    height:120px;
+    background:linear-gradient(to bottom, transparent, #ff8c00);
+    left:50%;
+    top:50%;
+    transform-origin:center top;
+    transform:translate(-50%, 0) rotate(-90deg);
+    border-radius:2px;
+    box-shadow:0 0 10px rgba(255,140,0,0.6);
+    transition:transform 0.05s linear;
+    pointer-events:none;
+}
+.seconds-hand::after{
+    content:'';
+    position:absolute;
+    width:12px;
+    height:12px;
+    background:#ff8c00;
+    border-radius:50%;
+    top:-6px;
+    left:50%;
+    transform:translateX(-50%);
+    box-shadow:0 0 15px rgba(255,140,0,0.8);
+}
+
+/* Celebration ribbons */
+.ribbon {
+    position: fixed;
+    width: 10px;
+    height: 100px;
+    opacity: 0;
+    z-index: 100;
+}
+.ribbon.show {
+    animation: ribbonFall 3s ease-out;
+}
+@keyframes ribbonFall {
+    0% { 
+        opacity: 1; 
+        transform: translateY(-100px) rotate(0deg);
+    }
+    100% { 
+        opacity: 0; 
+        transform: translateY(100vh) rotate(720deg);
+    }
+}
+
+/* Mode toggle */
+.mode-toggle{
+    position:absolute;
+    top:40px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:6px;
+    background:rgba(0,0,0,0.7);
+    padding:3px;
+    border-radius:16px;
+    border:1px solid rgba(255,140,0,0.4);
+    z-index:20;
+}
+.mode-btn{
+    padding:8px 16px;
+    border:none;
+    border-radius:12px;
+    background:rgba(50,50,50,0.8);
+    color:#ff8c00;
+    font-size:0.8rem;
+    font-weight:700;
+    cursor:pointer;
+    transition:all 0.3s;
+}
+.mode-btn:hover{
+    background:rgba(80,80,80,0.9);
+}
+.mode-btn.active{
+    background:#ff8c00 !important;
+    color:#000 !important;
+    box-shadow:0 0 15px rgba(255,140,0,0.8);
+}
+
+/* Countdown input */
+.countdown-input{
+    position:absolute;
+    top:75px;
+    left:50%;
+    transform:translateX(-50%);
+    display:none;
+    gap:5px;
+    align-items:center;
+    background:rgba(0,0,0,0.8);
+    padding:8px 12px;
+    border-radius:10px;
+    border:2px solid rgba(255,140,0,0.6);
+    z-index:10;
+}
+.countdown-input.show{
+    display:flex;
+}
+.countdown-input input{
+    width:50px;
+    padding:6px;
+    background:rgba(0,0,0,0.8);
+    border:2px solid rgba(255,140,0,0.6);
+    border-radius:6px;
+    color:#ff8c00;
+    font-family:'Courier New', monospace;
+    font-size:1rem;
+    text-align:center;
+    font-weight:bold;
+}
+.countdown-input label{
+    font-size:1rem;
+    color:#ff8c00;
+    font-weight:bold;
+}
+
+/* Alarm input - moved above circle */
+.alarm-input{
+    position:absolute;
+    top:-70px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:6px;
+    align-items:center;
+    background:rgba(0,0,0,0.7);
+    padding:6px 10px;
+    border-radius:10px;
+    border:1px solid rgba(255,140,0,0.4);
+}
+.alarm-input input{
+    width:45px;
+    padding:4px;
+    background:rgba(0,0,0,0.6);
+    border:1px solid rgba(255,140,0,0.5);
+    border-radius:6px;
+    color:#ff8c00;
+    font-family:'Courier New', monospace;
+    font-size:0.8rem;
+    text-align:center;
+}
+.alarm-input label{
+    font-size:0.75rem;
+    color:#ff8c00;
+}
+.alarm-input button{
+    padding:4px 10px;
+    background:#3b82f6;
+    border:none;
+    border-radius:6px;
+    color:#fff;
+    font-size:0.75rem;
+    font-weight:600;
+    cursor:pointer;
+}
+
+/* CENTER TIME */
+#centerTime {
+  font-family: 'Courier New', monospace;
+  font-size: 3rem;
+  color: #ff8c00;
+  text-shadow: 0 0 30px #ff8c00;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight:700;
+  letter-spacing:2px;
+}
+
+/* CIRCULAR STATS */
+.circular-stats {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+
+.stat {
+  position: absolute;
+  font-family: 'Courier New', monospace;
+  font-size: 0.95rem;
+  color: #ff8c00;
+  text-shadow: 0 0 15px #ff8c00;
+  white-space: nowrap;
+  font-weight:600;
+}
+
+/* Buttons positioned LEFT of circle */
+.controls{
+    position: absolute;
+    left: -180px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.controls button{
+    padding: 12px 24px;
+    border-radius: 12px;
+    border:2px solid;
+    cursor:pointer;
+    font-weight:700;
+    color:#fff;
+    font-size:0.95rem;
+    transition:all 0.3s;
+    box-shadow:0 4px 15px rgba(0,0,0,0.4);
+    min-width: 140px;
+}
+.controls button:hover{
+    transform:scale(1.05);
+    box-shadow:0 6px 25px rgba(0,0,0,0.6);
+}
+.start{
+    background:#10b981;
+    border-color:#10b981;
+}
+.pause{
+    background:#f59e0b;
+    border-color:#f59e0b;
+}
+.lap{
+    background:#3b82f6;
+    border-color:#3b82f6;
+}
+.reset{
+    background:#ef4444;
+    border-color:#ef4444;
+}
+
+/* Laps scrollable - BELOW circle */
+.laps{
+    position: absolute;
+    top: 520px;
+    left:50%;
+    transform:translateX(-50%);
+    max-height: 130px;
+    width: 500px;
+    overflow-y:auto;
+    background:rgba(0,0,0,0.6);
+    border-radius:12px;
+    padding:10px;
+    border:1px solid rgba(255,140,0,0.3);
+}
+.laps::-webkit-scrollbar{width:6px;}
+.laps::-webkit-scrollbar-track{background:rgba(255,140,0,0.1);}
+.laps::-webkit-scrollbar-thumb{background:rgba(255,140,0,0.5);border-radius:3px;}
+
+.lap-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:6px 10px;
+    margin-bottom:4px;
+    background:rgba(255,140,0,.15);
+    border-left:4px solid #ff8c00;
+    border-radius:4px;
+    font-family:'Courier New',monospace;
+    font-size:0.85rem;
+}
+.lap-diff{font-size:0.75rem; opacity:0.9; margin-left:8px;}
+.lap-diff.faster{color:#10b981;}
+.lap-diff.slower{color:#ef4444;}
+.best{border-left-color:#10b981; background:rgba(16,185,129,0.15);}
+.worst{border-left-color:#ef4444; background:rgba(239,68,68,0.15);}
+</style>
+</head>
+
+<body>
+
+<div class="animated-bg"></div>
+<div class="grid-background"></div>
+
+<!-- GIFS -->
+<div class="gif-container">
+    <div class="gif-bg" style="top:8%; left:6%;"><img src="https://i.gifer.com/embedded/download/QCJi.gif"></div>
+    <div class="gif-bg" style="top:12%; left:58%;"><img src="https://www.picgifs.com/movies-and-series/movies/harry-potter/picgifs-harry-potter-1232312.gif"></div>
+    <div class="gif-bg" style="top:52%; left:10%;"><img src="https://i.pinimg.com/originals/64/22/c5/6422c589b77abf943adf1ca6f1380ecf.gif"></div>
+    <div class="gif-bg" style="top:60%; left:62%;"><img src="https://i.pinimg.com/originals/2a/1f/7b/2a1f7b9eb7557947e86580143890f265.gif"></div>
+</div>
+
+<div class="stopwatch-wrapper">
+<div class="stopwatch-wrapper">
+  <div class="circular-container">
+
+    <!-- Alarm input - Above circle -->
+    <div class="alarm-input" id="alarmInput">
+      <label>Alarm:</label>
+      <input type="number" id="alarmMin" placeholder="00" min="0">
+      <label>:</label>
+      <input type="number" id="alarmSec" placeholder="00" min="0" max="59">
+      <button id="setAlarmBtn">Set</button>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="stopwatchMode">Stopwatch</button>
+      <button class="mode-btn" id="countdownMode">Countdown</button>
+    </div>
+
+    <!-- Clock markers (12 positions like a clock) -->
+    <div class="clock-markers" id="markers"></div>
+
+    <!-- Seconds hand -->
+    <div class="seconds-hand" id="secondsHand"></div>
+
+    <!-- Countdown input -->
+    <div class="countdown-input" id="countdownInput">
+      <input type="number" id="countdownMin" placeholder="00" min="0" max="59">
+      <label>:</label>
+      <input type="number" id="countdownSec" placeholder="00" min="0" max="59">
+    </div>
+
+    <div id="centerTime">00:00:00.00</div>
+
+    <!-- CIRCULAR STATS -->
+    <div class="circular-stats">
+      <div class="stat" id="bestLap">Best: --</div>
+      <div class="stat" id="worstLap">Worst: --</div>
+      <div class="stat" id="avgLap">Avg: --</div>
+      <div class="stat" id="totalLaps">Laps: 0</div>
+    </div>
+
+    <div class="controls">
+      <button class="start" id="startBtn">Start</button>
+      <button class="pause" id="pauseBtn" style="display:none">Pause</button>
+      <button class="lap" id="lapBtn">Lap</button>
+      <button class="reset" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="laps" id="lapsList"></div>
+
+  </div>
+</div>
+
+<script>
+let startTime = 0;
+let elapsedTime = 0;
+let timer = null;
+let running = false;
+
+let lapTimes = [];
+let lastLapTime = 0;
+
+let mode = 'stopwatch'; // 'stopwatch' or 'countdown'
+let countdownTime = 0;
+let countdownInitial = 0;
+let countdownStartTime = 0;
+let countdownElapsed = 0;
+
+let alarmTime = null;
+let alarmTriggered = false;
+
+const centerTime = document.getElementById('centerTime');
+const lapsList = document.getElementById('lapsList');
+const secondsHand = document.getElementById('secondsHand');
+
+const startBtn = document.getElementById('startBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const lapBtn = document.getElementById('lapBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+const bestLap = document.getElementById('bestLap');
+const worstLap = document.getElementById('worstLap');
+const avgLap = document.getElementById('avgLap');
+const totalLaps = document.getElementById('totalLaps');
+
+const stopwatchModeBtn = document.getElementById('stopwatchMode');
+const countdownModeBtn = document.getElementById('countdownMode');
+const countdownInput = document.getElementById('countdownInput');
+const alarmInput = document.getElementById('alarmInput');
+const setAlarmBtn = document.getElementById('setAlarmBtn');
+
+// Create clock markers
+const markersContainer = document.getElementById('markers');
+for(let i = 0; i < 12; i++){
+    const marker = document.createElement('div');
+    marker.className = 'marker';
+    marker.style.transform = `rotate(${i * 30}deg)`;
+    if(i % 3 === 0){
+        marker.style.height = '25px';
+        marker.style.width = '3px';
+        marker.style.background = 'rgba(255,140,0,0.8)';
+    }
+    markersContainer.appendChild(marker);
+}
+
+function format(msVal){
+    const totalSeconds = Math.floor(msVal / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600)/60);
+    const s = totalSeconds % 60;
+    const cs = Math.floor((msVal % 1000)/10);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(cs).padStart(2,'0')}`;
+}
+
+function updateSecondsHand(ms){
+    const totalSeconds = Math.floor(ms / 1000);
+    const seconds = totalSeconds % 60;
+    const degrees = (seconds * 6); // 6 degrees per second
+    secondsHand.style.transform = `translate(-50%, 0) rotate(${degrees - 90}deg)`;
+}
+
+function createRibbons() {
+    const colors = ['#ff8c00', '#ff4500', '#ffd700', '#ff1493', '#00ff00', '#00bfff'];
+    for(let i = 0; i < 30; i++) {
+        setTimeout(() => {
+            const ribbon = document.createElement('div');
+            ribbon.className = 'ribbon show';
+            ribbon.style.left = Math.random() * 100 + '%';
+            ribbon.style.background = colors[Math.floor(Math.random() * colors.length)];
+            ribbon.style.width = (Math.random() * 15 + 5) + 'px';
+            document.body.appendChild(ribbon);
+            
+            setTimeout(() => ribbon.remove(), 3000);
+        }, i * 100);
+    }
+}
+
+function sessionComplete(type) {
+    clearInterval(timer);
+    running = false;
+    centerTime.style.color = '#ef4444';
+    
+    // Create celebration ribbons
+    createRibbons();
+    
+    // Beep sound - play 3 times
+    for(let i = 0; i < 3; i++){
+        setTimeout(() => {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        }, i * 300);
+    }
+    
+    setTimeout(() => {
+        if(type === 'countdown'){
+            alert("🎉 COUNTDOWN COMPLETE!\n\n✅ Your session is completed!\n💪 Great focus!");
+        } else if(type === 'alarm'){
+            alert("⏰ TIME'S UP!\n\n🔔 Your set alarm has rung!\n🎯 Time reached - Take a break!");
+        }
+        centerTime.style.color = '#ff8c00';
+    }, 200);
+    
+    startBtn.style.display = "block";
+    pauseBtn.style.display = "none";
+}
+
+function checkAlarm(){
+    if(alarmTime !== null && !alarmTriggered && mode === 'stopwatch'){
+        const currentSeconds = Math.floor(elapsedTime / 1000);
+        if(currentSeconds >= alarmTime){
+            alarmTriggered = true;
+            
+            // Clear the alarm inputs
+            document.getElementById('alarmMin').value = '';
+            document.getElementById('alarmSec').value = '';
+            setAlarmBtn.textContent = 'Set';
+            setAlarmBtn.style.background = '#3b82f6';
+            
+            sessionComplete('alarm');
+            
+            // Reset alarm after showing message
+            setTimeout(() => {
+                alarmTime = null;
+                alarmTriggered = false;
+            }, 1000);
+        }
+    }
+}
+
+function update(){
+    if(mode === 'stopwatch'){
+        elapsedTime = Date.now() - startTime;
+        centerTime.textContent = format(elapsedTime);
+        updateSecondsHand(elapsedTime);
+        checkAlarm();
+    } else if(mode === 'countdown'){
+        const elapsed = Date.now() - countdownStartTime;
+        const remaining = countdownTime - elapsed;
+        
+        if(remaining <= 0){
+            countdownTime = 0;
+            countdownElapsed = 0;
+            sessionComplete('countdown');
+            secondsHand.style.transform = 'translate(-50%, 0) rotate(-90deg)';
+            centerTime.textContent = "00:00:00.00";
+            return;
+        }
+        centerTime.textContent = format(remaining);
+        updateSecondsHand(remaining);
+    }
+}
+
+// Mode switching
+stopwatchModeBtn.onclick = () => {
+    mode = 'stopwatch';
+    stopwatchModeBtn.classList.add('active');
+    countdownModeBtn.classList.remove('active');
+    countdownInput.classList.remove('show');
+    alarmInput.style.display = 'flex';
+    lapBtn.style.display = 'block';
+    
+    console.log('Switched to STOPWATCH mode');
+    
+    // Only reset if not running
+    if(!running){
+        resetBtn.click();
+    }
+};
+
+countdownModeBtn.onclick = () => {
+    mode = 'countdown';
+    countdownModeBtn.classList.add('active');
+    stopwatchModeBtn.classList.remove('active');
+    countdownInput.classList.add('show');
+    alarmInput.style.display = 'none';
+    lapBtn.style.display = 'none';
+    
+    console.log('Switched to COUNTDOWN mode');
+    console.log('Countdown input should now be visible');
+    
+    // Only reset if not running
+    if(!running){
+        resetBtn.click();
+    }
+};
+
+// Set alarm
+setAlarmBtn.onclick = () => {
+    const min = parseInt(document.getElementById('alarmMin').value) || 0;
+    const sec = parseInt(document.getElementById('alarmSec').value) || 0;
+    
+    if(min === 0 && sec === 0){
+        alarmTime = null;
+        alarmTriggered = false;
+        setAlarmBtn.textContent = 'Set';
+        setAlarmBtn.style.background = '#3b82f6';
+    } else {
+        alarmTime = (min * 60) + sec;
+        alarmTriggered = false;
+        setAlarmBtn.textContent = '✓';
+        setAlarmBtn.style.background = '#10b981';
+        setTimeout(() => {
+            setAlarmBtn.textContent = 'Set';
+            setAlarmBtn.style.background = '#3b82f6';
+        }, 2000);
+    }
+};
+
+startBtn.onclick = () => {
+    if(running) return;
+    
+    console.log('Start clicked. Mode:', mode);
+    
+    if(mode === 'countdown'){
+        // If starting fresh (not resuming)
+        if(countdownTime === 0){
+            const min = parseInt(document.getElementById('countdownMin').value) || 0;
+            const sec = parseInt(document.getElementById('countdownSec').value) || 0;
+            
+            console.log('Countdown input - Minutes:', min, 'Seconds:', sec);
+            
+            countdownInitial = (min * 60 * 1000) + (sec * 1000);
+            
+            console.log('Countdown time in ms:', countdownInitial);
+            
+            if(countdownInitial === 0){
+                alert('Please enter countdown time in the boxes above!');
+                return;
+            }
+            
+            countdownTime = countdownInitial;
+            countdownElapsed = 0;
+        }
+        
+        countdownStartTime = Date.now() - countdownElapsed;
+        console.log('Starting countdown...');
+    } else {
+        startTime = Date.now() - elapsedTime;
+        console.log('Starting stopwatch...');
+    }
+    
+    timer = setInterval(update, 10);
+    running = true;
+    startBtn.style.display = "none";
+    pauseBtn.style.display = "block";
+};
+
+pauseBtn.onclick = () => {
+    clearInterval(timer);
+    running = false;
+    
+    if(mode === 'countdown'){
+        // Save how much time has elapsed
+        countdownElapsed = Date.now() - countdownStartTime;
+    }
+    
+    startBtn.style.display = "block";
+    pauseBtn.style.display = "none";
+};
+
+resetBtn.onclick = () => {
+    clearInterval(timer);
+    running = false;
+    elapsedTime = 0;
+    startTime = 0;
+    lastLapTime = 0;
+    lapTimes = [];
+    countdownTime = 0;
+    countdownInitial = 0;
+    countdownElapsed = 0;
+    countdownStartTime = 0;
+    alarmTriggered = false;
+
+    centerTime.textContent = "00:00:00.00";
+    centerTime.style.color = '#ff8c00';
+    lapsList.innerHTML = "";
+    secondsHand.style.transform = 'translate(-50%, 0) rotate(-90deg)';
+
+    bestLap.textContent = "Best: --";
+    worstLap.textContent = "Worst: --";
+    avgLap.textContent = "Avg: --";
+    totalLaps.textContent = "Laps: 0";
+
+    startBtn.style.display = "block";
+    pauseBtn.style.display = "none";
+};
+
+lapBtn.onclick = () => {
+    if(!running || mode !== 'stopwatch') return;
+
+    const lapTime = elapsedTime - lastLapTime;
+    lastLapTime = elapsedTime;
+    lapTimes.push(lapTime);
+
+    const lapIndex = lapTimes.length;
+    const formatted = format(lapTime);
+
+    let diffHTML = "";
+    if(lapIndex > 1){
+        const diff = lapTime - lapTimes[lapIndex-2];
+        const diffFmt = format(Math.abs(diff));
+        diffHTML = `<span class="lap-diff ${diff>0?'slower':'faster'}">${diff>0?'+':'-'}${diffFmt}</span>`;
+    }
+
+    const lapItem = document.createElement('div');
+    lapItem.className = "lap-item";
+    lapItem.innerHTML = `<span>Lap ${lapIndex}</span><span>${formatted}${diffHTML}</span>`;
+    lapsList.prepend(lapItem);
+    lapsList.scrollTop = 0;
+
+    const best = Math.min(...lapTimes);
+    const worst = Math.max(...lapTimes);
+    const avg = lapTimes.reduce((a,b)=>a+b,0)/lapTimes.length;
+
+    bestLap.textContent = `Best: ${format(best)}`;
+    worstLap.textContent = `Worst: ${format(worst)}`;
+    avgLap.textContent = `Avg: ${format(avg)}`;
+    totalLaps.textContent = `Laps: ${lapTimes.length}`;
+
+    [...lapsList.children].forEach((el,i)=>{
+        el.classList.remove('best','worst');
+        const t = lapTimes[lapTimes.length-1-i];
+        if(t===best) el.classList.add('best');
+        if(t===worst && best!==worst) el.classList.add('worst');
+    });
+};
+
+function positionStats() {
+  const stats = document.querySelectorAll('.stat');
+  const radius = 165; // distance from center
+  const angles = [45, 135, 225, 315]; // positions: top-right, bottom-right, bottom-left, top-left
+
+  stats.forEach((el, i) => {
+    const angle = angles[i];
+    const rad = (angle - 90) * (Math.PI / 180);
+    const x = radius * Math.cos(rad);
+    const y = radius * Math.sin(rad);
+    el.style.left = `calc(50% + ${x}px)`;
+    el.style.top = `calc(50% + ${y}px)`;
+    el.style.transform = `translate(-50%, -50%)`;
+  });
+}
+
+// Initialize positions
+positionStats();
+</script>
+</body>
+</html>
